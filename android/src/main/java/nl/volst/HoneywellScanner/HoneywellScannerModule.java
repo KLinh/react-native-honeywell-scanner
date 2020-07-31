@@ -51,8 +51,8 @@ public class HoneywellScannerModule extends ReactContextBaseJavaModule implement
 
 	public HoneywellScannerModule(ReactApplicationContext reactContext) {
 		super(reactContext);
-
 		mReactContext = reactContext;
+		mReactContext.addLifecycleEventListener(this);
 	}
 
 	@Override
