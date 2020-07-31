@@ -2,7 +2,9 @@ package nl.volst.HoneywellScanner;
 
 import java.lang.reflect.Method;
 import java.util.Set;
+
 import javax.annotation.Nullable;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -28,107 +30,152 @@ import com.honeywell.aidc.AidcManager.CreatedCallback;
 import com.honeywell.aidc.BarcodeFailureEvent;
 import com.honeywell.aidc.BarcodeReadEvent;
 import com.honeywell.aidc.BarcodeReader;
+import com.honeywell.aidc.ScannerNotClaimedException;
 import com.honeywell.aidc.ScannerUnavailableException;
+import com.honeywell.aidc.UnsupportedPropertyException;
 
 @SuppressWarnings("unused")
 public class HoneywellScannerModule extends ReactContextBaseJavaModule implements BarcodeReader.BarcodeListener {
 
-    // Debugging
-    private static final boolean D = true;
+	// Debugging
+	private static final boolean D = true;
 
-    private static BarcodeReader barcodeReader;
-    private AidcManager manager;
-    private BarcodeReader reader;
-    private ReactApplicationContext mReactContext;
+	private static BarcodeReader barcodeReader;
+	private AidcManager manager;
+	private BarcodeReader reader;
+	private ReactApplicationContext mReactContext;
 
-    private static final String BARCODE_READ_SUCCESS = "barcodeReadSuccess";
-    private static final String BARCODE_READ_FAIL = "barcodeReadFail";
+	private static final String BARCODE_READ_SUCCESS = "barcodeReadSuccess";
+	private static final String BARCODE_READ_FAIL = "barcodeReadFail";
 
-    public HoneywellScannerModule(ReactApplicationContext reactContext) {
-        super(reactContext);
+	public HoneywellScannerModule(ReactApplicationContext reactContext) {
+		super(reactContext);
 
-        mReactContext = reactContext;
-    }
+		mReactContext = reactContext;
+	}
 
-    @Override
-    public String getName() {
-        return "HoneywellScanner";
-    }
+	@Override
+	public String getName() {
+		return "HoneywellScanner";
+	}
 
-    /**
-     * Send event to javascript
-     * @param eventName Name of the event
-     * @param params Additional params
-     */
-    private void sendEvent(String eventName, @Nullable WritableMap params) {
-        if (mReactContext.hasActiveCatalystInstance()) {
-            if (D) Log.d(TAG, "Sending event: " + eventName);
-            mReactContext
-                .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-                .emit(eventName, params);
-        }
-    }
+	/**
+	 * Send event to javascript
+	 *
+	 * @param eventName Name of the event
+	 * @param params    Additional params
+	 */
+	private void sendEvent(String eventName, @Nullable WritableMap params) {
+		if (mReactContext.hasActiveCatalystInstance()) {
+			if (D) Log.d(TAG, "Sending event: " + eventName);
+			mReactContext
+					.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+					.emit(eventName, params);
+		}
+	}
 
-    public void onBarcodeEvent(BarcodeReadEvent barcodeReadEvent) {
-        if (D) Log.d(TAG, "HONEYWELLSCANNER - Barcode scan read");
-        WritableMap params = Arguments.createMap();
-        params.putString("data", barcodeReadEvent.getBarcodeData());
-        sendEvent(BARCODE_READ_SUCCESS, params);
-    }
+	public void onBarcodeEvent(BarcodeReadEvent barcodeReadEvent) {
+		if (D) Log.d(TAG, "HONEYWELLSCANNER - Barcode scan read");
+		WritableMap params = Arguments.createMap();
+		params.putString("data", barcodeReadEvent.getBarcodeData());
+		sendEvent(BARCODE_READ_SUCCESS, params);
+	}
 
-    public void onFailureEvent(BarcodeFailureEvent barcodeFailureEvent) {
-        if (D) Log.d(TAG, "HONEYWELLSCANNER - Barcode scan failed");
-        sendEvent(BARCODE_READ_FAIL, null);
-    }
+	public void onFailureEvent(BarcodeFailureEvent barcodeFailureEvent) {
+		if (D) Log.d(TAG, "HONEYWELLSCANNER - Barcode scan failed");
+		sendEvent(BARCODE_READ_FAIL, null);
+	}
 
-    /*******************************/
-    /** Methods Available from JS **/
-    /*******************************/
+	/*******************************/
+	/** Methods Available from JS **/
+	/*******************************/
 
-    @ReactMethod
-    public void startReader(final Promise promise) {
-        AidcManager.create(mReactContext, new CreatedCallback() {
-            @Override
-            public void onCreated(AidcManager aidcManager) {
-                manager = aidcManager;
-                reader = manager.createBarcodeReader();
-                if(reader != null){
-                    reader.addBarcodeListener(HoneywellScannerModule.this);
-                    try {
-                        reader.claim();
-                        promise.resolve(true);
-                    } catch (ScannerUnavailableException e) {
-                        promise.resolve(false);
-                        e.printStackTrace();
-                    }
-                }
-            }
-        });
-    }
+	@ReactMethod
+	public void startReader(final Promise promise) {
+		AidcManager.create(mReactContext, new CreatedCallback() {
+			@Override
+			public void onCreated(AidcManager aidcManager) {
+				manager = aidcManager;
+				reader = manager.createBarcodeReader("dcs.scanner.ring");
+//				if (reader != null) {
+				reader.addBarcodeListener(HoneywellScannerModule.this);
+				try {
+					reader.setProperty(BarcodeReader.PROPERTY_UPC_A_CHECK_DIGIT_TRANSMIT_ENABLED, true);
+					reader.setProperty(BarcodeReader.PROPERTY_UPC_E_CHECK_DIGIT_TRANSMIT_ENABLED, true);
+					reader.setProperty(BarcodeReader.PROPERTY_EAN_8_CHECK_DIGIT_TRANSMIT_ENABLED, true);
+					reader.setProperty(BarcodeReader.PROPERTY_EAN_13_CHECK_DIGIT_TRANSMIT_ENABLED, true);
+					reader.claim();
+					promise.resolve(true);
+				} catch (ScannerUnavailableException e) {
+					promise.resolve(false);
+					e.printStackTrace();
+				} catch (UnsupportedPropertyException e) {
+					e.printStackTrace();
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+//				}
+			}
+		});
+	}
 
-    @ReactMethod
-    public void stopReader(Promise promise) {
-        if (reader != null) {
-            reader.close();
-        }
-        if (manager != null) {
-            manager.close();
-        }
-        promise.resolve(null);
-    }
+	@ReactMethod
+	public void stopReader(Promise promise) {
+		if (reader != null) {
+			reader.close();
+		}
+		if (manager != null) {
+			manager.close();
+		}
+		promise.resolve(null);
+	}
 
-    private boolean isCompatible() {
-        // This... is not optimal. Need to find a better way to performantly check whether device has a Honeywell scanner 
-        return Build.BRAND.toLowerCase().contains("honeywell");
-    }
+	@ReactMethod
+	public boolean StartScan() {
+		if (reader != null) {
+			try {
+				reader.softwareTrigger(true);
+				return true;
+			} catch (ScannerNotClaimedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (ScannerUnavailableException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		return false;
+	}
 
-    @Override
-    public Map<String, Object> getConstants() {
-        final Map<String, Object> constants = new HashMap<>();
-        constants.put("BARCODE_READ_SUCCESS", BARCODE_READ_SUCCESS);
-        constants.put("BARCODE_READ_FAIL", BARCODE_READ_FAIL);
-        constants.put("isCompatible", isCompatible());
-        return constants;
-    }
+	@ReactMethod
+	public boolean StopScan() {
+		if (reader != null) {
+			try {
+				reader.softwareTrigger(false);
+				return true;
+			} catch (ScannerNotClaimedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (ScannerUnavailableException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		return false;
+	}
+
+	private boolean isCompatible() {
+		// This... is not optimal. Need to find a better way to performantly check whether device has a Honeywell scanner
+		return Build.BRAND.toLowerCase().contains("honeywell");
+	}
+
+	@Override
+	public Map<String, Object> getConstants() {
+		final Map<String, Object> constants = new HashMap<>();
+		constants.put("BARCODE_READ_SUCCESS", BARCODE_READ_SUCCESS);
+		constants.put("BARCODE_READ_FAIL", BARCODE_READ_FAIL);
+		constants.put("isCompatible", isCompatible());
+		return constants;
+	}
 
 }
