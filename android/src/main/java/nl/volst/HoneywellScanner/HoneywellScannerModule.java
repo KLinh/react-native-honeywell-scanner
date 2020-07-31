@@ -14,6 +14,7 @@ import android.content.Context;
 import android.os.Build;
 import android.util.Log;
 
+import com.facebook.react.bridge.LifecycleEventListener;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
@@ -35,7 +36,7 @@ import com.honeywell.aidc.ScannerUnavailableException;
 import com.honeywell.aidc.UnsupportedPropertyException;
 
 @SuppressWarnings("unused")
-public class HoneywellScannerModule extends ReactContextBaseJavaModule implements BarcodeReader.BarcodeListener {
+public class HoneywellScannerModule extends ReactContextBaseJavaModule implements BarcodeReader.BarcodeListener, LifecycleEventListener {
 
 	// Debugging
 	private static final boolean D = true;
@@ -57,6 +58,39 @@ public class HoneywellScannerModule extends ReactContextBaseJavaModule implement
 	@Override
 	public String getName() {
 		return "HoneywellScanner";
+	}
+
+
+	@Override
+	public void onHostResume() {
+		if (reader != null) {
+			try {
+				reader.claim();
+			} catch (ScannerUnavailableException e) {
+				//
+			}
+		}
+	}
+
+	@Override
+	public void onHostPause() {
+		if (reader != null) {
+			// release the scanner claim so we don't get any scanner
+			// notifications while paused.
+			reader.release();
+		}
+	}
+
+	@Override
+	public void onHostDestroy() {
+		if (reader != null) {
+			reader.removeBarcodeListener(this);
+			reader.close();
+		}
+
+		if (manager != null) {
+			manager.close();
+		}
 	}
 
 	/**
@@ -97,24 +131,26 @@ public class HoneywellScannerModule extends ReactContextBaseJavaModule implement
 			public void onCreated(AidcManager aidcManager) {
 				manager = aidcManager;
 				reader = manager.createBarcodeReader("dcs.scanner.ring");
-//				if (reader != null) {
 				reader.addBarcodeListener(HoneywellScannerModule.this);
 				try {
+					reader.setProperty(BarcodeReader.PROPERTY_TRIGGER_CONTROL_MODE,
+							BarcodeReader.TRIGGER_CONTROL_MODE_AUTO_CONTROL);
+
 					reader.setProperty(BarcodeReader.PROPERTY_UPC_A_CHECK_DIGIT_TRANSMIT_ENABLED, true);
 					reader.setProperty(BarcodeReader.PROPERTY_UPC_E_CHECK_DIGIT_TRANSMIT_ENABLED, true);
 					reader.setProperty(BarcodeReader.PROPERTY_EAN_8_CHECK_DIGIT_TRANSMIT_ENABLED, true);
 					reader.setProperty(BarcodeReader.PROPERTY_EAN_13_CHECK_DIGIT_TRANSMIT_ENABLED, true);
+
 					reader.claim();
+
 					promise.resolve(true);
 				} catch (ScannerUnavailableException e) {
-					promise.resolve(false);
-					e.printStackTrace();
+					promise.reject(e);
 				} catch (UnsupportedPropertyException e) {
-					e.printStackTrace();
+					promise.reject(e);
 				} catch (Exception e) {
-					e.printStackTrace();
+					promise.reject(e);
 				}
-//				}
 			}
 		});
 	}
@@ -131,37 +167,35 @@ public class HoneywellScannerModule extends ReactContextBaseJavaModule implement
 	}
 
 	@ReactMethod
-	public boolean StartScan() {
+	public void StartScan(Promise promise) {
 		if (reader != null) {
 			try {
 				reader.softwareTrigger(true);
-				return true;
+				promise.resolve(true);
 			} catch (ScannerNotClaimedException e) {
 				// TODO Auto-generated catch block
-				e.printStackTrace();
+				promise.reject(e);
 			} catch (ScannerUnavailableException e) {
 				// TODO Auto-generated catch block
-				e.printStackTrace();
+				promise.reject(e);
 			}
 		}
-		return false;
 	}
 
 	@ReactMethod
-	public boolean StopScan() {
+	public void StopScan(Promise promise) {
 		if (reader != null) {
 			try {
 				reader.softwareTrigger(false);
-				return true;
+				promise.resolve(true);
 			} catch (ScannerNotClaimedException e) {
 				// TODO Auto-generated catch block
-				e.printStackTrace();
+				promise.reject(e);
 			} catch (ScannerUnavailableException e) {
 				// TODO Auto-generated catch block
-				e.printStackTrace();
+				promise.reject(e);
 			}
 		}
-		return false;
 	}
 
 	private boolean isCompatible() {
