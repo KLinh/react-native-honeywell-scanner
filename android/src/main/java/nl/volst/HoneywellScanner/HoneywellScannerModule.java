@@ -86,10 +86,14 @@ public class HoneywellScannerModule extends ReactContextBaseJavaModule implement
 		if (reader != null) {
 			reader.removeBarcodeListener(this);
 			reader.close();
+
+			reader = null;
 		}
 
 		if (manager != null) {
 			manager.close();
+
+			manager = null;
 		}
 	}
 
@@ -130,6 +134,12 @@ public class HoneywellScannerModule extends ReactContextBaseJavaModule implement
 			@Override
 			public void onCreated(AidcManager aidcManager) {
 				manager = aidcManager;
+
+				if (reader != null) {
+					reader.release();
+					reader.close();
+				}
+
 				reader = manager.createBarcodeReader("dcs.scanner.ring");
 				reader.addBarcodeListener(HoneywellScannerModule.this);
 				try {
