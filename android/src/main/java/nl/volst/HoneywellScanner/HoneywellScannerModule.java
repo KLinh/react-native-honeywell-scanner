@@ -209,6 +209,11 @@ public class HoneywellScannerModule extends ReactContextBaseJavaModule implement
 		}
 	}
 
+	@ReactMethod
+	public void isCompatible(Promise promise) {
+		promise.resolve(Build.BRAND.toLowerCase().contains("honeywell"));
+	}
+
 	private boolean isCompatible() {
 		// This... is not optimal. Need to find a better way to performantly check whether device has a Honeywell scanner
 		return Build.BRAND.toLowerCase().contains("honeywell");
