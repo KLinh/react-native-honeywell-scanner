@@ -229,9 +229,13 @@ public class HoneywellScannerModule extends ReactContextBaseJavaModule implement
 		}
 	}
 
-	private boolean isCompatible() {
-		// This... is not optimal. Need to find a better way to performantly check whether device has a Honeywell scanner
-		return Build.BRAND.toLowerCase().contains("honeywell");
+	@ReactMethod
+	public void checkCompatible(Promise promise) {
+		if (Build.BRAND.toLowerCase().contains("honeywell")) {
+			promise.resolve(true);
+		} else {
+			promise.resolve(false);
+		}
 	}
 
 	@Override
@@ -239,7 +243,6 @@ public class HoneywellScannerModule extends ReactContextBaseJavaModule implement
 		final Map<String, Object> constants = new HashMap<>();
 		constants.put("BARCODE_READ_SUCCESS", BARCODE_READ_SUCCESS);
 		constants.put("BARCODE_READ_FAIL", BARCODE_READ_FAIL);
-		constants.put("isCompatible", isCompatible());
 		return constants;
 	}
 
