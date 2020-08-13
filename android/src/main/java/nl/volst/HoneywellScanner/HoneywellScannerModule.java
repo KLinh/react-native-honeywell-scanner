@@ -40,6 +40,7 @@ public class HoneywellScannerModule extends ReactContextBaseJavaModule implement
 
 	// Debugging
 	private static final boolean D = true;
+    private boolean triggerState = false;
 
 	private static BarcodeReader barcodeReader;
 	private AidcManager manager;
@@ -117,6 +118,16 @@ public class HoneywellScannerModule extends ReactContextBaseJavaModule implement
 		WritableMap params = Arguments.createMap();
 		params.putString("data", barcodeReadEvent.getBarcodeData());
 		sendEvent(BARCODE_READ_SUCCESS, params);
+		try {
+            reader.aim(!triggerState);
+            reader.light(!triggerState);
+            reader.decode(!triggerState);
+            triggerState = !triggerState;
+        } catch (ScannerNotClaimedException e) {
+            e.printStackTrace();
+        } catch (ScannerUnavailableException e) {
+            e.printStackTrace();
+        }
 	}
 
 	public void onFailureEvent(BarcodeFailureEvent barcodeFailureEvent) {
@@ -140,19 +151,23 @@ public class HoneywellScannerModule extends ReactContextBaseJavaModule implement
 					reader.close();
 				}
 
-				reader = manager.createBarcodeReader("dcs.scanner.ring");
+				reader = manager.createBarcodeReader();
 				reader.addBarcodeListener(HoneywellScannerModule.this);
 				try {
-					reader.setProperty(BarcodeReader.PROPERTY_TRIGGER_CONTROL_MODE,
-							BarcodeReader.TRIGGER_CONTROL_MODE_AUTO_CONTROL);
+					reader.claim();
 
-					reader.setProperty(BarcodeReader.PROPERTY_UPC_A_CHECK_DIGIT_TRANSMIT_ENABLED, true);
-					reader.setProperty(BarcodeReader.PROPERTY_UPC_E_CHECK_DIGIT_TRANSMIT_ENABLED, true);
-					reader.setProperty(BarcodeReader.PROPERTY_EAN_8_CHECK_DIGIT_TRANSMIT_ENABLED, true);
+					// apply settings
+					reader.setProperty(BarcodeReader.PROPERTY_EAN_13_ENABLED, true);
 					reader.setProperty(BarcodeReader.PROPERTY_EAN_13_CHECK_DIGIT_TRANSMIT_ENABLED, true);
+					reader.setProperty(BarcodeReader.PROPERTY_EAN_8_ENABLED, true);
+					reader.setProperty(BarcodeReader.PROPERTY_EAN_8_CHECK_DIGIT_TRANSMIT_ENABLED, true);
+					reader.setProperty(BarcodeReader.PROPERTY_CODE_39_ENABLED, false);
+					reader.setProperty(BarcodeReader.PROPERTY_DATAMATRIX_ENABLED, true);
 					reader.setProperty(BarcodeReader.PROPERTY_DATA_PROCESSOR_LAUNCH_BROWSER, false);
 
-					reader.claim();
+					// set the trigger mode to client control
+					reader.setProperty(BarcodeReader.PROPERTY_TRIGGER_CONTROL_MODE,
+							BarcodeReader.TRIGGER_CONTROL_MODE_CLIENT_CONTROL);
 
 					promise.resolve(true);
 				} catch (ScannerUnavailableException e) {
@@ -181,7 +196,12 @@ public class HoneywellScannerModule extends ReactContextBaseJavaModule implement
 	public void StartScan(Promise promise) {
 		if (reader != null) {
 			try {
-				reader.softwareTrigger(true);
+				reader.softwareTrigger(triggerState);
+				reader.aim(!triggerState);
+				reader.light(!triggerState);
+				reader.decode(!triggerState);
+				triggerState = !triggerState;
+
 				promise.resolve(true);
 			} catch (ScannerNotClaimedException e) {
 				// TODO Auto-generated catch block
