@@ -167,7 +167,7 @@ public class HoneywellScannerModule extends ReactContextBaseJavaModule implement
 
 					// set the trigger mode to client control
 					reader.setProperty(BarcodeReader.PROPERTY_TRIGGER_CONTROL_MODE,
-							BarcodeReader.TRIGGER_CONTROL_MODE_CLIENT_CONTROL);
+							BarcodeReader.TRIGGER_CONTROL_MODE_AUTO_CONTROL);
 
 					promise.resolve(true);
 				} catch (ScannerUnavailableException e) {
